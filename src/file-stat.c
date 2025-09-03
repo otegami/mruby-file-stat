@@ -103,15 +103,18 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #  define STAT(p,s) _stat64(p,s)
+#  define LSTAT(p,s) _stat64(p,s)
+#  define FSTAT(fd,s) _fstat64(fd,s)
 #  define STAT_STRUCT struct _stat64
 #else
 #  define STAT(p,s) stat(p,s)
+#  define FSTAT(fd,s) fstat(fd,s)
 #  define STAT_STRUCT struct stat
-#endif
-#ifdef HAVE_LSTAT
-#  define LSTAT(p,s) lstat(p,s)
-#else
-#  define LSTAT(p,s) stat(p,s)
+#  ifdef HAVE_LSTAT
+#    define LSTAT(p,s) lstat(p,s)
+#  else
+#    define LSTAT(p,s) stat(p,s)
+#  endif
 #endif
 #define MRB_MAX_GROUPS (65536)
 
@@ -299,7 +302,7 @@ io_stat(mrb_state *mrb, mrb_value self)
     mrb_raise(mrb, E_NOTIMP_ERROR, "`fileno' is not implemented");
   }
 
-  if (fstat(mrb_fixnum(fileno), &st) == -1) {
+  if (FSTAT(mrb_fixnum(fileno), &st) == -1) {
     mrb_sys_fail(mrb, "fstat");
   }
 
