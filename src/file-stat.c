@@ -101,7 +101,11 @@
 #  define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
-#define STAT(p,s) stat(p,s)
+#if defined(_WIN32) || defined(_WIN64)
+#  define STAT(p,s) _stat64(p,s)
+#else
+#  define STAT(p,s) stat(p,s)
+#endif
 #ifdef HAVE_LSTAT
 #  define LSTAT(p,s) lstat(p,s)
 #else
