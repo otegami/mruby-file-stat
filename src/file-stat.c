@@ -103,8 +103,10 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #  define STAT(p,s) _stat64(p,s)
+#  define STAT_STRUCT struct _stat64
 #else
 #  define STAT(p,s) stat(p,s)
+#  define STAT_STRUCT struct stat
 #endif
 #ifdef HAVE_LSTAT
 #  define LSTAT(p,s) lstat(p,s)
@@ -149,10 +151,10 @@ getegid(void)
 
 struct mrb_data_type mrb_stat_type = { "File::Stat", mrb_free };
 
-static struct stat *
+static STAT_STRUCT *
 mrb_stat_alloc(mrb_state *mrb)
 {
-  return (struct stat *)mrb_malloc(mrb, sizeof(struct stat));
+  return (STAT_STRUCT *)mrb_malloc(mrb, sizeof(STAT_STRUCT));
 }
 
 static mrb_value
@@ -160,7 +162,7 @@ file_s_lstat(mrb_state *mrb, mrb_value klass)
 {
   struct RClass *file_class;
   struct RClass *stat_class;
-  struct stat st, *ptr;
+  STAT_STRUCT st, *ptr;
   mrb_value fname, tmp;
   char *path;
 
@@ -194,7 +196,7 @@ file_s_lstat(mrb_state *mrb, mrb_value klass)
 static mrb_value
 stat_initialize(mrb_state *mrb, mrb_value self)
 {
-  struct stat st, *ptr;
+  STAT_STRUCT st, *ptr;
   mrb_value fname, tmp;
   char *path;
 
@@ -217,7 +219,7 @@ stat_initialize(mrb_state *mrb, mrb_value self)
     }
   }
 
-  ptr = (struct stat *)DATA_PTR(self);
+  ptr = (STAT_STRUCT *)DATA_PTR(self);
   if (ptr) {
     mrb_free(mrb, ptr);
   }
@@ -250,19 +252,19 @@ stat_initialize_copy(mrb_state *mrb, mrb_value copy)
   }
 
   if (DATA_PTR(orig)) {
-    DATA_PTR(copy) = mrb_malloc(mrb, sizeof(struct stat));
+    DATA_PTR(copy) = mrb_malloc(mrb, sizeof(STAT_STRUCT));
     DATA_TYPE(copy) = &mrb_stat_type;
-    *(struct stat *)DATA_PTR(copy) = *(struct stat *)DATA_PTR(orig);
+    *(STAT_STRUCT *)DATA_PTR(copy) = *(STAT_STRUCT *)DATA_PTR(orig);
   }
   return copy;
 }
 
-static struct stat *
+static STAT_STRUCT *
 get_stat(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st;
+  STAT_STRUCT *st;
 
-  st = (struct stat *)mrb_data_get_ptr(mrb, self, &mrb_stat_type);
+  st = (STAT_STRUCT *)mrb_data_get_ptr(mrb, self, &mrb_stat_type);
   if (!st) mrb_raise(mrb, E_TYPE_ERROR, "uninitialized File::Stat");
   return st;
 }
@@ -287,7 +289,7 @@ io_stat(mrb_state *mrb, mrb_value self)
 {
   struct RClass *file_class;
   struct RClass *stat_class;
-  struct stat st, *ptr;
+  STAT_STRUCT st, *ptr;
   mrb_value fileno;
 
   if (mrb_respond_to(mrb, self, mrb_intern_lit(mrb, "fileno"))) {
@@ -398,7 +400,7 @@ time_at_with_sec_nsec(mrb_state *mrb, time_t sec, long nsec)
 }
 
 static struct timespec
-stat_atimespec(const struct stat *st)
+stat_atimespec(const STAT_STRUCT *st)
 {
   struct timespec ts;
   ts.tv_sec = st->st_atime;
@@ -422,7 +424,7 @@ stat_atime(mrb_state *mrb, mrb_value self)
 }
 
 static struct timespec
-stat_mtimespec(const struct stat *st)
+stat_mtimespec(const STAT_STRUCT *st)
 {
   struct timespec ts;
   ts.tv_sec = st->st_mtime;
@@ -446,7 +448,7 @@ stat_mtime(mrb_state *mrb, mrb_value self)
 }
 
 static struct timespec
-stat_ctimespec(const struct stat *st)
+stat_ctimespec(const STAT_STRUCT *st)
 {
   struct timespec ts;
   ts.tv_sec = st->st_ctime;
@@ -473,7 +475,7 @@ stat_ctime(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_birthtime(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
   const struct timespec *ts = &st->st_birthtimespec;
   return time_at_with_sec_nsec(mrb, ts->tv_sec, ts->tv_nsec);
 }
@@ -568,7 +570,7 @@ stat_grpowned_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_readable_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st;
+  STAT_STRUCT *st;
 #ifdef USE_GETEUID
   if (geteuid() == 0)
     return mrb_true_value();
@@ -592,7 +594,7 @@ stat_readable_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_readable_real_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st;
+  STAT_STRUCT *st;
 
 #ifdef USE_GETEUID
   if (getuid() == 0)
@@ -617,7 +619,7 @@ static mrb_value
 stat_world_readable_p(mrb_state *mrb, mrb_value self)
 {
 #ifdef S_IROTH
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
   if ((st->st_mode & (S_IROTH)) == S_IROTH) {
     return mrb_fixnum_value(st->st_mode & (S_IRUGO|S_IWUGO|S_IXUGO));
   }
@@ -633,7 +635,7 @@ stat_world_readable_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_writable_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st;
+  STAT_STRUCT *st;
 
 #ifdef USE_GETEUID
   if (geteuid() == 0)
@@ -658,7 +660,7 @@ stat_writable_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_writable_real_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st;
+  STAT_STRUCT *st;
 
 #ifdef USE_GETEUID
   if (getuid() == 0)
@@ -683,7 +685,7 @@ static mrb_value
 stat_world_writable_p(mrb_state *mrb, mrb_value self)
 {
 #ifdef S_IWOTH
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
   if ((st->st_mode & (S_IWOTH)) == S_IWOTH) {
     return mrb_fixnum_value(st->st_mode & (S_IRUGO|S_IWUGO|S_IXUGO));
   }
@@ -698,7 +700,7 @@ stat_world_writable_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_executable_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
 
 #ifdef USE_GETEUID
   if (geteuid() == 0) {
@@ -723,7 +725,7 @@ stat_executable_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_executable_real_p(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
 
 #ifdef USE_GETEUID
   if (getuid() == 0)
@@ -840,7 +842,7 @@ stat_sticky_p(mrb_state *mrb, mrb_value self)
 static mrb_value
 stat_ftype(mrb_state *mrb, mrb_value self)
 {
-  struct stat *st = get_stat(mrb, self);
+  STAT_STRUCT *st = get_stat(mrb, self);
   const char *t;
 
   if (S_ISREG(st->st_mode)) {
